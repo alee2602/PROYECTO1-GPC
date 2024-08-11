@@ -49,7 +49,7 @@ fn render2d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<char>
                 }
             } else {
                 // Renderizar celdas vacías con un color de fondo si es necesario
-                framebuffer.set_current_color(Color::folklore_ground().to_hex());
+                framebuffer.set_current_color(Color::ground().to_hex());
                 for x in 0..block_size {
                     for y in 0..block_size {
                         framebuffer.point(xo + x, yo + y);
@@ -57,6 +57,12 @@ fn render2d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<char>
                 }
             }
         }
+    }
+    let num_rays = 5;
+    for i in 0..num_rays {
+        let current_ray = i as f32 / num_rays as f32;
+        let angle = player.a - (player.fov / 2.0) + (player.fov * current_ray);
+        cast_ray(framebuffer, &maze, &player, angle, block_size, true); // Activar el dibujado
     }
 
     // Dibujar al jugador como un punto en 2D
@@ -72,16 +78,17 @@ fn render3d(framebuffer: &mut Framebuffer, player: &Player, textures: [&Texture;
     let hw = framebuffer.width as f32 / 2.0;
     let hh = framebuffer.height as f32 / 2.0;
 
-    // Establecer el color del cielo
-    framebuffer.set_current_color(Color::folklore_sky().to_hex());
     for y in 0..hh as usize {
+        let ratio = y as f32 / hh; // Ratio de la posición actual en la altura del cielo
+        let sky_color = Color::gradient_sky(ratio).to_hex(); 
+        framebuffer.set_current_color(sky_color);
         for x in 0..framebuffer.width {
             framebuffer.point(x, y);
         }
     }
 
     // Establecer el color del suelo
-    framebuffer.set_current_color(Color::folklore_ground().to_hex());
+    framebuffer.set_current_color(Color::ground().to_hex());
     for y in hh as usize..framebuffer.height {
         for x in 0..framebuffer.width {
             framebuffer.point(x, y);
@@ -130,7 +137,7 @@ fn main() {
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
 
     let mut window = Window::new(
-        "Renderized Maze",
+        "Renderized Maze ",
         window_width,
         window_height,
         WindowOptions::default(),

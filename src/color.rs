@@ -21,11 +21,22 @@ impl Color {
         Self::new(255,0,0)
     }
 
-    pub fn folklore_sky() -> Self {
-        Self::new(72, 92, 110)  // Un gris azulado
+    pub fn ground() -> Self {
+        Self::new(159, 175, 200)  
     }
 
-    pub fn folklore_ground() -> Self {
-        Self::new(65, 54, 39)  // Un marrón oscuro
+    pub fn black() -> Self{
+        Self::new(0, 0, 0)
+    }
+
+    pub fn gradient_sky(ratio: f32) -> Self {
+        let start_color = Color::new(0, 0, 0); 
+        let end_color = Color::new(32, 30, 67); 
+
+        Self::new(
+            (start_color.r as f32 * (1.0 - ratio) + end_color.r as f32 * ratio) as u8,
+            (start_color.g as f32 * (1.0 - ratio) + end_color.g as f32 * ratio) as u8,
+            (start_color.b as f32 * (1.0 - ratio) + end_color.b as f32 * ratio) as u8,
+        )
     }
 }

@@ -31,7 +31,6 @@ pub fn cast_ray(
         let j = y / block_size;
 
         if maze[j][i] != ' ' {
-            println!("Intersección detectada en la celda: ({}, {}) con impacto: {}", i, j, maze[j][i]);
             return Intersect{
                 distance:d,
                 impact: maze[j][i]

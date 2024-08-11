@@ -66,7 +66,6 @@ fn render2d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<char>
 
 fn render3d(framebuffer: &mut Framebuffer, player: &Player, textures: [&Texture; 3]) {
     let maze = load_maze("./maze.txt");
-    println!("{:?}", maze); // Verifica que la malla se carga correctamente
     let block_size = 50;
     let num_rays = framebuffer.width; // Número de rayos basados en la anchura del framebuffer
 

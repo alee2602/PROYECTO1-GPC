@@ -13,11 +13,19 @@ impl Color {
         ((self.r as u32) << 16) | ((self.g as u32) << 8) | (self.b as u32)
     }
 
-    pub fn darkblue() -> Self {
-        Self::new(32, 30, 67)
-    }
-
     pub fn white() -> Self {
         Self::new(255, 255, 255)
+    }
+
+    pub fn red() -> Self{
+        Self::new(255,0,0)
+    }
+
+    pub fn folklore_sky() -> Self {
+        Self::new(72, 92, 110)  // Un gris azulado
+    }
+
+    pub fn folklore_ground() -> Self {
+        Self::new(65, 54, 39)  // Un marrón oscuro
     }
 }

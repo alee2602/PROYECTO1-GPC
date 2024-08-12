@@ -6,23 +6,37 @@ pub fn process_events(window: &Window, player: &mut Player, maze: &Vec<Vec<char>
     const MOVE_SPEED: f32 = 5.0;
     const ROTATION_SPEED: f32 = PI / 20.0;
 
-    if window.is_key_down(Key::Left) {
+    // Rotación con las teclas A y D
+    if window.is_key_down(Key::A) {
         player.a -= ROTATION_SPEED;
     }
-    if window.is_key_down(Key::Right) {
+    if window.is_key_down(Key::D) {
         player.a += ROTATION_SPEED;
     }
 
     let mut new_x = player.position.x;
     let mut new_y = player.position.y;
 
-    if window.is_key_down(Key::Up) {
+    // Movimiento hacia adelante con W
+    if window.is_key_down(Key::W) {
         new_x += player.a.cos() * MOVE_SPEED;
         new_y += player.a.sin() * MOVE_SPEED;
     }
-    if window.is_key_down(Key::Down) {
+    // Movimiento hacia atrás con S
+    if window.is_key_down(Key::S) {
         new_x -= player.a.cos() * MOVE_SPEED;
         new_y -= player.a.sin() * MOVE_SPEED;
+    }
+
+    // Movimiento lateral hacia la izquierda con Q
+    if window.is_key_down(Key::Q) {
+        new_x -= player.a.sin() * MOVE_SPEED;
+        new_y += player.a.cos() * MOVE_SPEED;
+    }
+    // Movimiento lateral hacia la derecha con E
+    if window.is_key_down(Key::E) {
+        new_x += player.a.sin() * MOVE_SPEED;
+        new_y -= player.a.cos() * MOVE_SPEED;
     }
 
     // Verificar si la nueva posición no está dentro de una pared

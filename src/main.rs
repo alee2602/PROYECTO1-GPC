@@ -136,7 +136,7 @@ fn render3d(framebuffer: &mut Framebuffer, player: &Player, textures: [&Texture;
 }
 
 fn main() {
-    
+
     let (_stream, stream_handle) =
         OutputStream::try_default().expect("No se pudo inicializar el stream de audio.");
     let sink = Sink::try_new(&stream_handle).expect("No se pudo crear el sink de audio.");
@@ -188,7 +188,7 @@ fn main() {
             mode = if mode == "2D" { "3D" } else { "2D" };
         }
 
-        process_events(&window, &mut player, &maze, block_size);
+        process_events(&mut window, &mut player, &maze, block_size);
         framebuffer.clear();
 
         if mode == "2D" {

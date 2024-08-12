@@ -1,27 +1,36 @@
 use minifb::{Key, Window, WindowOptions};
 use nalgebra_glm::Vec2;
+use rodio::{source::Source, Decoder, OutputStream, Sink};
 use std::f32::consts::PI;
+use std::fs::File;
+use std::io::BufReader;
 use std::time::Duration;
 
 mod color;
 mod controller;
 mod framebuffer;
 mod maze;
+mod minimap;
 mod player;
 mod raycaster;
-mod minimap;
 mod texture;
 
 use crate::color::Color;
 use crate::controller::process_events;
 use crate::framebuffer::Framebuffer;
 use crate::maze::load_maze;
+use crate::minimap::render_minimap;
 use crate::player::Player;
 use crate::raycaster::cast_ray;
-use crate::minimap::render_minimap;
 use crate::texture::Texture;
 
-fn render2d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<char>>, textures: [&Texture; 3], block_size: usize) {
+fn render2d(
+    framebuffer: &mut Framebuffer,
+    player: &Player,
+    maze: &Vec<Vec<char>>,
+    textures: [&Texture; 3],
+    block_size: usize,
+) {
     let maze = load_maze("./maze.txt");
     let block_size = 50;
 
@@ -31,9 +40,9 @@ fn render2d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<char>
             let yo = row * block_size;
 
             let texture = match maze[row][col] {
-                '+' => Some(&textures[0]), // Texture for '+'
-                '-' => Some(&textures[1]), // Texture for '-'
-                '|' => Some(&textures[2]), // Texture for '|'
+                '+' => Some(&textures[0]),
+                '-' => Some(&textures[1]),
+                '|' => Some(&textures[2]),
                 _ => None,
             };
 
@@ -48,7 +57,6 @@ fn render2d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<char>
                     }
                 }
             } else {
-                // Renderizar celdas vacías con un color de fondo si es necesario
                 framebuffer.set_current_color(Color::ground().to_hex());
                 for x in 0..block_size {
                     for y in 0..block_size {
@@ -62,7 +70,7 @@ fn render2d(framebuffer: &mut Framebuffer, player: &Player, maze: &Vec<Vec<char>
     for i in 0..num_rays {
         let current_ray = i as f32 / num_rays as f32;
         let angle = player.a - (player.fov / 2.0) + (player.fov * current_ray);
-        cast_ray(framebuffer, &maze, &player, angle, block_size, true); // Activar el dibujado
+        cast_ray(framebuffer, &maze, &player, angle, block_size, true);
     }
 
     // Dibujar al jugador como un punto en 2D
@@ -75,12 +83,12 @@ fn render3d(framebuffer: &mut Framebuffer, player: &Player, textures: [&Texture;
     let block_size = 50;
     let num_rays = framebuffer.width; // Número de rayos basados en la anchura del framebuffer
 
-    let hw = framebuffer.width as f32 / 2.0;
+    //let hw = framebuffer.width as f32 / 2.0;
     let hh = framebuffer.height as f32 / 2.0;
 
     for y in 0..hh as usize {
         let ratio = y as f32 / hh; // Ratio de la posición actual en la altura del cielo
-        let sky_color = Color::gradient_sky(ratio).to_hex(); 
+        let sky_color = Color::gradient_sky(ratio).to_hex();
         framebuffer.set_current_color(sky_color);
         for x in 0..framebuffer.width {
             framebuffer.point(x, y);
@@ -110,9 +118,9 @@ fn render3d(framebuffer: &mut Framebuffer, player: &Player, textures: [&Texture;
         let stake_bottom = (hh + (stake_height / 2.0)) as usize;
 
         let texture = match intersect.impact {
-            '+' => &textures[0], 
-            '-' => &textures[1], 
-            '|' => &textures[2], 
+            '+' => &textures[0],
+            '-' => &textures[1],
+            '|' => &textures[2],
             _ => continue,
         };
 
@@ -128,6 +136,18 @@ fn render3d(framebuffer: &mut Framebuffer, player: &Player, textures: [&Texture;
 }
 
 fn main() {
+    
+    let (_stream, stream_handle) =
+        OutputStream::try_default().expect("No se pudo inicializar el stream de audio.");
+    let sink = Sink::try_new(&stream_handle).expect("No se pudo crear el sink de audio.");
+
+    let file = File::open("assets/epiphanyts.wav").expect("No se pudo abrir el archivo de música.");
+    let source =
+        Decoder::new(BufReader::new(file)).expect("No se pudo decodificar el archivo de música.");
+
+    sink.append(source.repeat_infinite());
+    sink.play();
+
     let window_width = 50 * 25;
     let window_height = 50 * 17;
     let framebuffer_width = window_width;
@@ -152,7 +172,7 @@ fn main() {
         fov: PI / 3.0,
     };
 
-    let maze = load_maze("./maze.txt"); // Cargar el laberinto desde un archivo
+    let maze = load_maze("./maze.txt");
     let block_size = 50;
     let minimap_size = 200;
     let wall_texture1 = Texture::from_file("assets/texture1.jpg");
@@ -175,7 +195,14 @@ fn main() {
             render2d(&mut framebuffer, &player, &maze, textures, block_size);
         } else {
             render3d(&mut framebuffer, &player, textures);
-            render_minimap(&mut framebuffer, &player, &maze, minimap_size, block_size, textures);
+            render_minimap(
+                &mut framebuffer,
+                &player,
+                &maze,
+                minimap_size,
+                block_size,
+                textures,
+            );
         }
 
         window

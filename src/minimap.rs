@@ -11,8 +11,8 @@ pub fn render_minimap(
     block_size: usize,
     textures: [&Texture; 3],
 ) {
-    let margin_left = 50; 
-    let margin_top = 20; 
+    let margin_left = 50;
+    let margin_top = 20;
     let minimap_x_offset = framebuffer.width - minimap_size - margin_left;
     let minimap_y_offset = margin_top;
 
@@ -30,14 +30,14 @@ pub fn render_minimap(
     let scale_x = minimap_size as f32 / (minimap_width as f32 * block_size as f32);
     let scale_y = minimap_size as f32 / (minimap_height as f32 * block_size as f32);
 
-     // Dibujar las paredes del laberinto en el minimapa
+    // Dibujar las paredes del laberinto en el minimapa
     for (row, maze_row) in maze.iter().enumerate() {
         for (col, cell) in maze_row.iter().enumerate() {
             if *cell != ' ' {
                 let texture = match cell {
                     '+' => Some(&textures[0]),
-                    '-' => Some(&textures[1]), 
-                    '|' => Some(&textures[2]), 
+                    '-' => Some(&textures[1]),
+                    '|' => Some(&textures[2]),
                     _ => None,
                 };
 

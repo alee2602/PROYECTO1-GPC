@@ -6,7 +6,7 @@ pub struct Color {
 
 impl Color {
     pub fn new(r: u8, g: u8, b: u8) -> Self {
-        Self { r, g, b }
+        Self { r, g, b} 
     }
 
     pub fn to_hex(&self) -> u32 {
@@ -17,21 +17,21 @@ impl Color {
         Self::new(255, 255, 255)
     }
 
-    pub fn red() -> Self{
-        Self::new(255,0,0)
+    pub fn red() -> Self {
+        Self::new(255, 0, 0)
     }
 
     pub fn ground() -> Self {
-        Self::new(159, 175, 200)  
+        Self::new(159, 175, 200)
     }
 
-    pub fn black() -> Self{
+    pub fn black() -> Self {
         Self::new(0, 0, 0)
     }
 
     pub fn gradient_sky(ratio: f32) -> Self {
-        let start_color = Color::new(0, 0, 0); 
-        let end_color = Color::new(32, 30, 67); 
+        let start_color = Color::new(0, 0, 0);
+        let end_color = Color::new(32, 30, 67);
 
         Self::new(
             (start_color.r as f32 * (1.0 - ratio) + end_color.r as f32 * ratio) as u8,
@@ -39,4 +39,5 @@ impl Color {
             (start_color.b as f32 * (1.0 - ratio) + end_color.b as f32 * ratio) as u8,
         )
     }
+
 }

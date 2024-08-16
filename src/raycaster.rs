@@ -40,6 +40,6 @@ pub fn cast_ray(
             framebuffer.point(x, y);
         }
 
-        d += 1.0;
+        d += 0.8;
     }
 }

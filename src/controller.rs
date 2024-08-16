@@ -3,8 +3,8 @@ use std::f32::consts::PI;
 use crate::player::Player;
 
 pub fn process_events(window: &Window, player: &mut Player, maze: &Vec<Vec<char>>, block_size: usize) {
-    const MOVE_SPEED: f32 = 7.0;
-    const ROTATION_SPEED: f32 = PI / 15.0;
+    const MOVE_SPEED: f32 = 8.0;
+    const ROTATION_SPEED: f32 = PI / 12.0;
 
     // Rotación con las teclas A y D
     if window.is_key_down(Key::A) {

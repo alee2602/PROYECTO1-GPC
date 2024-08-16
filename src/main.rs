@@ -5,30 +5,31 @@ use rodio::{source::Source, Decoder, OutputStream, Sink};
 use std::f32::consts::PI;
 use std::fs::File;
 use std::io::BufReader;
-use std::time::Duration;
-
+use std::time::{Duration, Instant};
 
 mod color;
 mod controller;
 mod enemy;
+mod fps;
 mod framebuffer;
+mod ghostmanager;
 mod maze;
 mod minimap;
 mod player;
 mod raycaster;
 mod texture;
-mod ghostmanager;
 
 use crate::color::Color;
 use crate::controller::process_events;
 use crate::enemy::Enemy;
 use crate::framebuffer::Framebuffer;
+use crate::ghostmanager::GhostManager;
 use crate::maze::load_maze;
 use crate::minimap::render_minimap;
 use crate::player::Player;
 use crate::raycaster::cast_ray;
 use crate::texture::Texture;
-use crate::ghostmanager::GhostManager;
+use fps::FPSCounter;
 
 enum GameState {
     StartScreen,
@@ -91,7 +92,7 @@ fn render3d(
     framebuffer: &mut Framebuffer,
     player: &Player,
     textures: [&Texture; 3],
-    ghost_texture: &Texture,  
+    ghost_texture: &Texture,
     enemies: &Vec<Enemy>,
 ) {
     let maze = load_maze("./maze.txt");
@@ -151,15 +152,16 @@ fn render3d(
         let dx = enemy.position.x - player.position.x;
         let dy = enemy.position.y - player.position.y;
         let distance_to_enemy = (dx * dx + dy * dy).sqrt();
-    
+
         if distance_to_enemy > 0.5 {
             let enemy_angle = (dy).atan2(dx);
             let relative_angle = enemy_angle - player.a;
-    
+
             // Verificar si el fantasma está en el campo de visión
             if relative_angle.abs() < player.fov / 2.0 {
-                let intersect = cast_ray(framebuffer, &maze, &player, enemy_angle, block_size, false);
-    
+                let intersect =
+                    cast_ray(framebuffer, &maze, &player, enemy_angle, block_size, false);
+
                 if intersect.distance < distance_to_enemy {
                     continue;
                 }
@@ -167,26 +169,26 @@ fn render3d(
                 let enemy_height = (hh / distance_to_enemy) * distance_to_projection_plane;
                 let enemy_top = (hh - (enemy_height / 2.0)) as usize;
                 let enemy_bottom = (hh + (enemy_height / 2.0)) as usize;
-    
+
                 let enemy_screen_position = (framebuffer.width as f32 / 2.0)
                     + (relative_angle / player.fov) * framebuffer.width as f32;
                 let enemy_screen_position = enemy_screen_position as usize;
-    
+
                 let ghost_width = ghost_texture.width;
                 let ghost_height = ghost_texture.height;
-    
+
                 for y in enemy_top..enemy_bottom {
                     let texture_y = ((y - enemy_top) * ghost_height) / (enemy_bottom - enemy_top);
                     let mut x_offset = 0;
-    
+
                     for x in enemy_screen_position..(enemy_screen_position + ghost_width) {
                         if x >= framebuffer.width {
-                            continue; 
+                            continue;
                         }
-    
+
                         let texture_x = (x_offset * ghost_width) / ghost_width;
                         let color = ghost_texture.get_pixel(texture_x, texture_y);
-    
+
                         // Renderizar el píxel solo si no es transparente
                         // Descomponer el color en componentes RGBA
                         let r = ((color >> 24) & 0xFF) as u8;
@@ -274,7 +276,7 @@ fn main() {
     let window_height = 50 * 17;
     let framebuffer_width = window_width;
     let framebuffer_height = window_height;
-    let close_delay = Duration::from_millis(16);
+    let mut close_delay = Duration::from_millis(16);
 
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
 
@@ -313,7 +315,7 @@ fn main() {
     let mut enemies = vec![];
     let player_start_position = Vec2::new(100.0, 200.0);
 
-    for _ in 0..10 {
+    for _ in 0..7 {
         loop {
             let x = rng.gen_range(1..maze[0].len()) as f32 * block_size as f32;
             let y = rng.gen_range(1..maze.len()) as f32 * block_size as f32;
@@ -324,18 +326,22 @@ fn main() {
             if maze[j][i] == ' '
                 && (Vec2::new(x, y) - player_start_position).norm() > block_size as f32
             {
-                enemies.push(Enemy::new(x, y, 1.0, 0.0, 2.0)); 
+                enemies.push(Enemy::new(x, y, 1.0, 0.0, 2.0));
                 break;
             }
         }
     }
 
     let mut ghost_manager = GhostManager::new();
+    let mut fps_counter = FPSCounter::new();
 
     let mut game_state = GameState::StartScreen;
     let mut mode = "2D"; // Modo inicial
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
+        let start_time = Instant::now();
+
+        fps_counter.update();
         match game_state {
             GameState::StartScreen => {
                 render_start_screen(&mut framebuffer, &start_texture);
@@ -356,7 +362,13 @@ fn main() {
                 if mode == "2D" {
                     render2d(&mut framebuffer, &player, &maze, textures, block_size);
                 } else {
-                    render3d(&mut framebuffer, &player, textures, &ghost_texture, &enemies);
+                    render3d(
+                        &mut framebuffer,
+                        &player,
+                        textures,
+                        &ghost_texture,
+                        &enemies,
+                    );
                     render_minimap(
                         &mut framebuffer,
                         &player,
@@ -367,6 +379,7 @@ fn main() {
                     );
                     ghost_manager.update_ghosts(player.position, &maze, &mut enemies, block_size);
                 }
+                fps_counter.render(&mut framebuffer, 10, 10, 2);
 
                 // Verificar si el jugador ha ganado o perdido
                 if player_reached_end(&player.position) {
@@ -379,7 +392,8 @@ fn main() {
                 for enemy in &mut enemies {
                     enemy.move_enemy(&maze, block_size);
 
-                    if enemy.check_collision_with_player(&player.position, block_size as f32 / 2.0) {
+                    if enemy.check_collision_with_player(&player.position, block_size as f32 / 2.0)
+                    {
                         player.position = Vec2::new(100.0, 200.0); // Reiniciar al jugador
                     }
                 }
@@ -387,7 +401,7 @@ fn main() {
             GameState::Victory => {
                 render_victory_screen(&mut framebuffer, &victory_texture);
                 if window.is_key_down(Key::Enter) {
-                    std::process::exit(0); 
+                    std::process::exit(0);
                 }
             }
             GameState::Defeat => {
@@ -402,6 +416,12 @@ fn main() {
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
             .unwrap();
 
-        std::thread::sleep(close_delay);
+        // Ajustar el tiempo de espera dinámicamente basado en el rendimiento
+        let frame_time = start_time.elapsed();
+        if frame_time < close_delay {
+            std::thread::sleep(close_delay - frame_time);
+        } else {
+            close_delay = Duration::from_millis(16);
+        }
     }
 }

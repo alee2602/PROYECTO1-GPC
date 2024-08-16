@@ -7,6 +7,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::time::Duration;
 
+
 mod color;
 mod controller;
 mod enemy;
@@ -28,6 +29,13 @@ use crate::player::Player;
 use crate::raycaster::cast_ray;
 use crate::texture::Texture;
 use crate::ghostmanager::GhostManager;
+
+enum GameState {
+    StartScreen,
+    Playing,
+    Victory,
+    Defeat,
+}
 
 fn render2d(
     framebuffer: &mut Framebuffer,
@@ -198,6 +206,58 @@ fn render3d(
         }
     }
 }
+//Renderizar pantalla de inicio
+fn render_start_screen(framebuffer: &mut Framebuffer, start_texture: &Texture) {
+    for y in 0..framebuffer.height {
+        for x in 0..framebuffer.width {
+            let texture_x = (x * start_texture.width) / framebuffer.width;
+            let texture_y = (y * start_texture.height) / framebuffer.height;
+            let color = start_texture.get_pixel(texture_x, texture_y);
+            framebuffer.set_current_color(color);
+            framebuffer.point(x, y);
+        }
+    }
+}
+
+//Renderizar pantalla de éxito
+fn render_victory_screen(framebuffer: &mut Framebuffer, victory_texture: &Texture) {
+    for y in 0..framebuffer.height {
+        for x in 0..framebuffer.width {
+            let texture_x = (x * victory_texture.width) / framebuffer.width;
+            let texture_y = (y * victory_texture.height) / framebuffer.height;
+            let color = victory_texture.get_pixel(texture_x, texture_y);
+            framebuffer.set_current_color(color);
+            framebuffer.point(x, y);
+        }
+    }
+}
+
+//Renderizar pantalla de derrota
+fn render_defeat_screen(framebuffer: &mut Framebuffer, defeat_texture: &Texture) {
+    for y in 0..framebuffer.height {
+        for x in 0..framebuffer.width {
+            let texture_x = (x * defeat_texture.width) / framebuffer.width;
+            let texture_y = (y * defeat_texture.height) / framebuffer.height;
+            let color = defeat_texture.get_pixel(texture_x, texture_y);
+            framebuffer.set_current_color(color);
+            framebuffer.point(x, y);
+        }
+    }
+}
+
+fn player_reached_end(player_position: &Vec2) -> bool {
+    let end_position = Vec2::new(1146.0, 767.0); // Coordenadas del final
+    (player_position - end_position).norm() < 10.0 // Si está cerca del final
+}
+
+fn ghost_touched_player(enemies: &Vec<Enemy>, player_position: &Vec2) -> bool {
+    for enemy in enemies {
+        if enemy.check_collision_with_player(player_position, 10.0) {
+            return true;
+        }
+    }
+    false
+}
 fn main() {
     let (_stream, stream_handle) =
         OutputStream::try_default().expect("No se pudo inicializar el stream de audio.");
@@ -242,6 +302,10 @@ fn main() {
     let wall_texture3 = Texture::from_file("assets/texture2.jpg");
     let ghost_texture = Texture::from_file("assets/ghost.png");
 
+    let start_texture = Texture::from_file("assets/woe.jpg");
+    let victory_texture = Texture::from_file("assets/won.jpg");
+    let defeat_texture = Texture::from_file("assets/failed.jpg");
+
     let textures = [&wall_texture1, &wall_texture2, &wall_texture3];
 
     // Crear enemigos en posiciones válidas cerca del jugador
@@ -268,38 +332,69 @@ fn main() {
 
     let mut ghost_manager = GhostManager::new();
 
+    let mut game_state = GameState::StartScreen;
     let mut mode = "2D"; // Modo inicial
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        if window.is_key_down(Key::M) {
-            mode = if mode == "2D" { "3D" } else { "2D" };
-        }
+        match game_state {
+            GameState::StartScreen => {
+                render_start_screen(&mut framebuffer, &start_texture);
+                if window.is_key_down(Key::Enter) {
+                    game_state = GameState::Playing;
+                }
+            }
+            GameState::Playing => {
+                // Cambiar entre los modos 2D y 3D
+                if window.is_key_down(Key::M) {
+                    mode = if mode == "2D" { "3D" } else { "2D" };
+                }
 
-        process_events(&mut window, &mut player, &maze, block_size);
-        framebuffer.clear();
+                process_events(&mut window, &mut player, &maze, block_size);
+                framebuffer.clear();
 
-        if mode == "2D" {
-            render2d(&mut framebuffer, &player, &maze, textures, block_size);
-        } else {
-            render3d(&mut framebuffer, &player, textures, &ghost_texture, &enemies);
-            render_minimap(
-                &mut framebuffer,
-                &player,
-                &maze,
-                minimap_size,
-                block_size,
-                textures,
-            );
+                // Lógica de renderizado para 2D o 3D
+                if mode == "2D" {
+                    render2d(&mut framebuffer, &player, &maze, textures, block_size);
+                } else {
+                    render3d(&mut framebuffer, &player, textures, &ghost_texture, &enemies);
+                    render_minimap(
+                        &mut framebuffer,
+                        &player,
+                        &maze,
+                        minimap_size,
+                        block_size,
+                        textures,
+                    );
+                    ghost_manager.update_ghosts(player.position, &maze, &mut enemies, block_size);
+                }
 
-            ghost_manager.update_ghosts(player.position, &maze, &mut enemies, block_size);
-        }
+                // Verificar si el jugador ha ganado o perdido
+                if player_reached_end(&player.position) {
+                    game_state = GameState::Victory;
+                } else if ghost_touched_player(&enemies, &player.position) {
+                    game_state = GameState::Defeat;
+                }
 
-        for enemy in &mut enemies {
-            enemy.move_enemy(&maze, block_size);
+                // Renderizado y lógica de los fantasmas
+                for enemy in &mut enemies {
+                    enemy.move_enemy(&maze, block_size);
 
-            // Comprobar colisión con el jugador
-            if enemy.check_collision_with_player(&player.position, block_size as f32 / 2.0) {
-                player.position = Vec2::new(100.0, 200.0); // Reiniciar al jugador
+                    if enemy.check_collision_with_player(&player.position, block_size as f32 / 2.0) {
+                        player.position = Vec2::new(100.0, 200.0); // Reiniciar al jugador
+                    }
+                }
+            }
+            GameState::Victory => {
+                render_victory_screen(&mut framebuffer, &victory_texture);
+                if window.is_key_down(Key::Enter) {
+                    std::process::exit(0); 
+                }
+            }
+            GameState::Defeat => {
+                render_defeat_screen(&mut framebuffer, &defeat_texture);
+                if window.is_key_down(Key::Enter) {
+                    game_state = GameState::StartScreen;
+                }
             }
         }
 

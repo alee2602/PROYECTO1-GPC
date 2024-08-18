@@ -2,7 +2,6 @@ use crate::enemy::Enemy;
 use nalgebra_glm::Vec2;
 use std::time::{Instant, Duration};
 use rand::Rng;
-use std::f32::consts::PI;
 
 pub struct GhostManager {
     respawn_timer: Instant,
@@ -13,40 +12,34 @@ impl GhostManager {
     pub fn new() -> Self {
         Self {
             respawn_timer: Instant::now(),
-            respawn_duration: Duration::from_secs(5), 
+            respawn_duration: Duration::from_secs(7), 
         }
     }
 
-    pub fn update_ghosts(
-        &mut self,
-        player_position: Vec2,
-        maze: &Vec<Vec<char>>,
-        enemies: &mut Vec<Enemy>,
-        block_size: usize,
-    ) {
-        // Respawnear fantasmas cuando el temporizador expira
+    pub fn update_ghosts(&mut self, player_position: Vec2, maze: &Vec<Vec<char>>, enemies: &mut Vec<Enemy>, block_size: usize) {
+        // Solo respawnear los fantasmas cuando el temporizador expira
         if self.respawn_timer.elapsed() >= self.respawn_duration {
             self.respawn_timer = Instant::now(); // Reiniciar el temporizador
 
             let mut rng = rand::thread_rng();
 
             for enemy in enemies.iter_mut() {
-                let min_distance = block_size as f32 * 5.0; 
-                let max_distance = block_size as f32 * 10.0; 
-
+                // Elegir una nueva posición cercana al jugador
                 loop {
-                    // Elegir una distancia aleatoria en el rango y un ángulo aleatorio
-                    let distance = rng.gen_range(min_distance..max_distance);
-                    let angle = rng.gen_range(0.0..(2.0 * PI));
+                    let min_distance = block_size as f32 * 3.0; // Distancia mínima al jugador
+                    let max_distance = block_size as f32 * 9.0; // Distancia máxima al jugador
 
-                    // Calcular nuevas posiciones basadas en el ángulo y la distancia
+                    let distance = rng.gen_range(min_distance..max_distance);
+                    let angle = rng.gen_range(0.0..(2.0 * std::f32::consts::PI));
+
+                    // Calcular nuevas posiciones basadas en la distancia y el ángulo
                     let x = player_position.x + distance * angle.cos();
                     let y = player_position.y + distance * angle.sin();
 
                     let i = (x as usize) / block_size;
                     let j = (y as usize) / block_size;
 
-                    // Si la nueva posición es válida y no es una pared, mover el fantasma ahí
+                    // Verificar que la nueva posición es válida
                     if i < maze[0].len() && j < maze.len() && maze[j][i] == ' ' {
                         enemy.position.x = x;
                         enemy.position.y = y;

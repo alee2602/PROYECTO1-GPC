@@ -94,13 +94,13 @@ fn render3d(
     textures: [&Texture; 3],
     ghost_texture: &Texture,
     enemies: &Vec<Enemy>,
+    scale_factor: usize,
 ) {
     let maze = load_maze("./maze.txt");
     let block_size = 50;
     let num_rays = framebuffer.width;
     let hh = framebuffer.height as f32 / 2.0;
 
-    // Renderizado del cielo y el suelo
     for y in 0..hh as usize {
         let ratio = y as f32 / hh;
         let sky_color = Color::gradient_sky(ratio).to_hex();
@@ -117,7 +117,7 @@ fn render3d(
         }
     }
 
-    // Renderizado de las paredes
+    // Renderizado de las paredes con texturas escaladas
     for i in 0..num_rays {
         let current_ray = i as f32 / num_rays as f32;
         let a = player.a - (player.fov / 2.0) + (player.fov * current_ray);
@@ -137,21 +137,27 @@ fn render3d(
             _ => continue,
         };
 
-        let texture_x = (intersect.distance % texture.width as f32) as usize;
+        let texture_x = (intersect.distance % (texture.width / scale_factor) as f32) as usize;
 
         for y in stake_top..stake_bottom {
-            let texture_y = ((y - stake_top) * texture.height) / (stake_bottom - stake_top);
+            let texture_y = ((y - stake_top) * (texture.height / scale_factor)) / (stake_bottom - stake_top);
             let color = texture.get_pixel(texture_x, texture_y);
             framebuffer.set_current_color(color);
             framebuffer.point(i, y);
         }
     }
 
-    // Renderizado de los fantasmas con textura
+    // Límite máximo de distancia para renderizar fantasmas
+    let max_render_distance = 250.0;
     for enemy in enemies.iter() {
         let dx = enemy.position.x - player.position.x;
         let dy = enemy.position.y - player.position.y;
         let distance_to_enemy = (dx * dx + dy * dy).sqrt();
+
+        // No renderizar fantasmas que estén más lejos que el límite
+        if distance_to_enemy > max_render_distance {
+            continue;
+        }
 
         if distance_to_enemy > 0.5 {
             let enemy_angle = (dy).atan2(dx);
@@ -186,11 +192,10 @@ fn render3d(
                             continue;
                         }
 
-                        let texture_x = (x_offset * ghost_width) / ghost_width;
+                        let texture_x = (x_offset * ghost_texture.width) / ghost_width;
                         let color = ghost_texture.get_pixel(texture_x, texture_y);
 
-                        // Renderizar el píxel solo si no es transparente
-                        // Descomponer el color en componentes RGBA
+                        //Renderizar el píxel solo si no es transparente
                         let r = ((color >> 24) & 0xFF) as u8;
                         let g = ((color >> 16) & 0xFF) as u8;
                         let b = ((color >> 8) & 0xFF) as u8;
@@ -208,6 +213,7 @@ fn render3d(
         }
     }
 }
+
 //Renderizar pantalla de inicio
 fn render_start_screen(framebuffer: &mut Framebuffer, start_texture: &Texture) {
     for y in 0..framebuffer.height {
@@ -248,7 +254,7 @@ fn render_defeat_screen(framebuffer: &mut Framebuffer, defeat_texture: &Texture)
 }
 
 fn player_reached_end(player_position: &Vec2) -> bool {
-    let end_position = Vec2::new(1146.0, 767.0); // Coordenadas del final
+    let end_position = Vec2::new(524.0, 573.0); // Coordenadas del final
     (player_position - end_position).norm() < 10.0 // Si está cerca del final
 }
 
@@ -272,8 +278,8 @@ fn main() {
     sink.append(source.repeat_infinite());
     sink.play();
 
-    let window_width = 50 * 25;
-    let window_height = 50 * 17;
+    let window_width = 50 * 19;
+    let window_height = 50 * 13;
     let framebuffer_width = window_width;
     let framebuffer_height = window_height;
     let mut close_delay = Duration::from_millis(16);
@@ -315,7 +321,7 @@ fn main() {
     let mut enemies = vec![];
     let player_start_position = Vec2::new(100.0, 200.0);
 
-    for _ in 0..7 {
+    for _ in 0..5 {
         loop {
             let x = rng.gen_range(1..maze[0].len()) as f32 * block_size as f32;
             let y = rng.gen_range(1..maze.len()) as f32 * block_size as f32;
@@ -326,7 +332,7 @@ fn main() {
             if maze[j][i] == ' '
                 && (Vec2::new(x, y) - player_start_position).norm() > block_size as f32
             {
-                enemies.push(Enemy::new(x, y, 1.0, 0.0, 2.0));
+                enemies.push(Enemy::new(x, y));
                 break;
             }
         }
@@ -347,6 +353,7 @@ fn main() {
                 render_start_screen(&mut framebuffer, &start_texture);
                 if window.is_key_down(Key::Enter) {
                     game_state = GameState::Playing;
+                    player.position = player_start_position;
                 }
             }
             GameState::Playing => {
@@ -368,6 +375,7 @@ fn main() {
                         textures,
                         &ghost_texture,
                         &enemies,
+                        1
                     );
                     render_minimap(
                         &mut framebuffer,
@@ -375,9 +383,10 @@ fn main() {
                         &maze,
                         minimap_size,
                         block_size,
-                        textures,
+                        textures
                     );
                     ghost_manager.update_ghosts(player.position, &maze, &mut enemies, block_size);
+                    
                 }
                 fps_counter.render(&mut framebuffer, 10, 10, 2);
 
@@ -390,11 +399,9 @@ fn main() {
 
                 // Renderizado y lógica de los fantasmas
                 for enemy in &mut enemies {
-                    enemy.move_enemy(&maze, block_size);
-
                     if enemy.check_collision_with_player(&player.position, block_size as f32 / 2.0)
                     {
-                        player.position = Vec2::new(100.0, 200.0); // Reiniciar al jugador
+                        game_state = GameState::Defeat;
                     }
                 }
             }
@@ -421,7 +428,7 @@ fn main() {
         if frame_time < close_delay {
             std::thread::sleep(close_delay - frame_time);
         } else {
-            close_delay = Duration::from_millis(16);
+            close_delay = Duration::from_millis(16); 
         }
     }
 }

@@ -84,3 +84,4 @@ pub fn render_minimap(
     framebuffer.point(player_minimap_x, player_minimap_y + 1);
     framebuffer.point(player_minimap_x + 1, player_minimap_y + 1);
 }
+

@@ -375,7 +375,7 @@ fn main() {
                         textures,
                         &ghost_texture,
                         &enemies,
-                        1
+                        5
                     );
                     render_minimap(
                         &mut framebuffer,

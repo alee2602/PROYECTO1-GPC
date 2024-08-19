@@ -40,4 +40,4 @@ cargo run
 ```
 
 ### Here´s a demonstration of the game 
-[Whispers of Epiphany](https://youtu.be/V2k2LuepKVE)
+[Whispers of Epiphany](https://www.youtube.com/watch?v=9nmWZZsBrDU)
